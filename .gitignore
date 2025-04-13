@@ -1,2 +1,4 @@
 /telegram_scraper/inputs/*
 venv/
+.env
+/output
