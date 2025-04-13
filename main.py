@@ -5,20 +5,28 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from etana_tracker.telegram import get_telegram_data
-from etana_tracker.output import init_output, output_to_excel, output_to_json
+from telegram_scraper.telegram import get_telegram_data
+from telegram_scraper.output import init_output, output_to_excel, output_to_json
+
+from utils import parse_date_input
 
 
 async def main(args):
     """Main function. Runs get_telegram_data() with args and writes output to excel"""
 
     # convert dates to datetime objects, override times to be inclusive of whole day and convert to UTC
-    start_time = datetime.strptime(args.start_time, "%Y-%m-%dT%H:%M:%SZ").replace(
-        tzinfo=timezone.utc
-    )
-    end_time = datetime.strptime(args.end_time, "%Y-%m-%dT%H:%M:%SZ").replace(
-        tzinfo=timezone.utc
-    )
+    # NOTE: Should add timezone fallback - will need additional arg.
+
+
+    # start_time = datetime.strptime(args.start_time, "%Y-%m-%dT%H:%M:%SZ").replace(
+    #     tzinfo=timezone.utc
+    # )
+    # end_time = datetime.strptime(args.end_time, "%Y-%m-%dT%H:%M:%SZ").replace(
+    #     tzinfo=timezone.utc
+    # )
+
+    start_time = parse_date_input(args.start_time)
+    end_time = parse_date_input(args.end_time)
 
     # raise error if start time is after end time
     if start_time > end_time:
