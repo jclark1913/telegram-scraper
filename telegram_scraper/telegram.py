@@ -10,7 +10,7 @@ import os
 from dotenv import load_dotenv
 
 from datetime import datetime, timedelta, timezone
-from etana_tracker.output import init_output, output_to_excel
+from telegram_scraper.output import init_output, output_to_excel
 
 load_dotenv()
 
@@ -82,9 +82,9 @@ async def get_telegram_data(
                         media_link = "N/A"
 
                     # Get sender username if channel or user_id if group
-                    if link_type == False:
+                    if link_type is False:
                         sender = message.sender.username
-                    elif link_type == True:
+                    elif link_type is True:
                         sender = message.from_id.user_id
                     else:
                         sender = "N/A"
