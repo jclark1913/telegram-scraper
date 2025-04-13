@@ -1,14 +1,11 @@
+from utils import parse_date_input, parse_timezone
+from telegram_scraper.output import init_output, output_to_excel, output_to_json
+from telegram_scraper.telegram import get_telegram_data
 import asyncio
 import argparse
-from datetime import datetime, timezone
 from dotenv import load_dotenv
 
 load_dotenv()
-
-from telegram_scraper.telegram import get_telegram_data
-from telegram_scraper.output import init_output, output_to_excel, output_to_json
-
-from utils import parse_date_input
 
 
 async def main(args):
@@ -17,16 +14,13 @@ async def main(args):
     # convert dates to datetime objects, override times to be inclusive of whole day and convert to UTC
     # NOTE: Should add timezone fallback - will need additional arg.
 
+    if args.timezone:
+        tz = parse_timezone(args.timezone)
+    else:
+        tz = None
 
-    # start_time = datetime.strptime(args.start_time, "%Y-%m-%dT%H:%M:%SZ").replace(
-    #     tzinfo=timezone.utc
-    # )
-    # end_time = datetime.strptime(args.end_time, "%Y-%m-%dT%H:%M:%SZ").replace(
-    #     tzinfo=timezone.utc
-    # )
-
-    start_time = parse_date_input(args.start_time)
-    end_time = parse_date_input(args.end_time)
+    start_time = parse_date_input(args.start_time, tz)
+    end_time = parse_date_input(args.end_time, tz)
 
     # raise error if start time is after end time
     if start_time > end_time:
@@ -37,21 +31,37 @@ async def main(args):
         type=args.output_type,
         output_dir=args.output_dir,
         output_filename=args.output_filename,
+        tz=tz
     )
+
+    channels = args.channels or []
+
+    if args.channel_file:
+        try:
+            with open(args.channel_file, "r", encoding="utf-8") as f:
+                file_channels = [line.strip() for line in f if line.strip()]
+                channels.extend(file_channels)
+        except FileNotFoundError:
+            print(f"File not found: {args.channel_file}")
+
+    if not channels:
+        print("Please enter at least one valid Telegram channel.")
+        return
 
     # get data
     results = await get_telegram_data(
-        telegram_links=args.channels,
+        telegram_links=channels,
         search_term=args.search_term,
         start_time=start_time,
         end_time=end_time,
+        tz=tz,
     )
 
     # output data to correct file type
     if args.output_type == "xlsx":
-        output_to_excel(data=results, output_file=final_output_location)
+        output_to_excel(data=results, output_file=final_output_location, tz=tz)
     if args.output_type == "json":
-        output_to_json(data=results, output_file=final_output_location)
+        output_to_json(data=results, output_file=final_output_location, tz=tz)
 
     print("Finished. Output saved to: ", final_output_location)
 
@@ -73,8 +83,15 @@ def setup_args():
         "-c",
         "--channels",
         nargs="+",
-        required=True,
+        required=False,
         help="Enter a list of telegram links separated by spaces (e.g. --channels https://t.me/telegram_channel_1 https://t.me/telegram_channel_2)",
+    )
+
+    parser.add_argument(
+        "-cf",
+        "--channel-file",
+        required=False,
+        help="Path to file containing list of telegram links."
     )
 
     parser.add_argument(
@@ -99,10 +116,21 @@ def setup_args():
     )
 
     parser.add_argument(
+        "-tz",
+        "--timezone",
+        required=False,
+        help="""Enter a timezone. If none given defaults to UTC. Timezones should be entered as follows:/n/n
+
+        For EST: "+
+
+        """
+    )
+
+    parser.add_argument(
         "-of",
         "--output_filename",
         required=False,
-        help="Enter an output file name. WHAT DEFAULT TO?",
+        help="Enter an output file name.",  # TODO: WHAT DEFAULT TO?
     )
 
     parser.add_argument(
