@@ -5,12 +5,10 @@ from telethon.sync import TelegramClient
 from telethon.errors import FloodWaitError
 from telethon.tl.types import Chat, Channel, MessageMediaDocument
 from telethon.utils import get_display_name
-import asyncio
 import os
 from dotenv import load_dotenv
 
 from datetime import datetime, timedelta, timezone
-from telegram_scraper.output import init_output, output_to_excel
 
 load_dotenv()
 
@@ -19,15 +17,16 @@ api_id = os.environ.get("TELEGRAM_API_ID")
 api_hash = os.environ.get("TELEGRAM_API_HASH")
 phone_number = os.environ.get("TELEGRAM_PHONE_NUMBER")
 
-end_time = datetime.now(timezone.utc) - timedelta(days=0)
-start_time = end_time - timedelta(days=30)
+END_TIME_FALLBACK = datetime.now(timezone.utc) - timedelta(days=0)
+START_TIME_FALLBACK = END_TIME_FALLBACK - timedelta(days=30)
 
 
 async def get_telegram_data(
     telegram_links: list,
     search_term: str,
-    start_time: datetime = start_time,
-    end_time: datetime = end_time,
+    start_time: datetime,
+    end_time: datetime,
+    tz: timezone = None
 ) -> list:
     """Accepts a list of telegram links and a search term and returns a list of dictionaries with the data
 
@@ -43,6 +42,11 @@ async def get_telegram_data(
     TODO:
         - Add solid error handling
     """
+
+
+    if tz:
+        end_time = end_time.astimezone(tz)
+
     async with TelegramClient("Main_client", api_id, api_hash) as client:
         results = []
         for link in telegram_links:
@@ -59,12 +63,12 @@ async def get_telegram_data(
 
 
                 # Iterate through messages
-                async for message in client.iter_messages(link):
+                async for message in client.iter_messages(link, offset_date=start_time, reverse=True):
+                    message.date = message.date.astimezone(tz)
                     print("TELE MSG TIME: ", message.date)
                     # Check if message w/i time range
                     if message.date > end_time:
-                        continue
-                    if message.date < start_time:
+                        print(f"Stopping... because {message.date} > {end_time}")
                         break
 
                     # Skip if no text or media
@@ -75,9 +79,11 @@ async def get_telegram_data(
                     if search_term and search_term not in message.text:
                         continue
 
+                    handle = link.replace("@","")
+
                     # If message contains media, get media link
                     if message.media:
-                        media_link = "View media: " + f"{link}/{message.id}"
+                        media_link = "View media: " + f"https://t.me/{handle}/{message.id}"
                     else:
                         media_link = "N/A"
 
@@ -96,7 +102,7 @@ async def get_telegram_data(
                             "text": message.text,
                             "date": message.date,
                             "sender": sender,
-                            "link": f"{link}/{message.id}",
+                            "link": f"https://t.me/{handle}/{message.id}",
                             "media": media_link,
                         }
                     )
