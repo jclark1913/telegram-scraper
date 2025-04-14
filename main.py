@@ -19,8 +19,14 @@ async def main(args):
     else:
         tz = None
 
+    print(f"Args start: {args.start_time}")
+    print(f"Args end: {args.end_time}")
+
     start_time = parse_date_input(args.start_time, tz)
     end_time = parse_date_input(args.end_time, tz)
+
+    print(f"Parsed start: {repr(start_time)}")
+    print(f"Parsed end:   {repr(end_time)}")
 
     # raise error if start time is after end time
     if start_time > end_time:
@@ -102,14 +108,14 @@ def setup_args():
     )
 
     parser.add_argument(
-        "-st",
+        "-from",
         "--start_time",
         required=True,
         help="Enter a start time to scrape from in the format YYYY-MM-DD",
     )
 
     parser.add_argument(
-        "-et",
+        "-until",
         "--end_time",
         required=True,
         help="Enter an end time to scrape to in the format YYYY-MM-DD",
