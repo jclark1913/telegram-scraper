@@ -58,38 +58,34 @@ def parse_timezone(tz_str):
         return None
 
 def parse_date_input(date, tz_input):
-    """Parses a date and returns a datetime even if incomplete.
-
-    Examples:
-        - "2011-02-01" -> "2011-02-01 00:00:00+00:00"
-        - "2011" -> "2011-01-01 00:00:00+00:00"
-        - "2011-02-01 01:30:00" -> "2011-02-01 01:30:00+00:00"
-
-    Also supports an optional timezone argument. If not provided defaults to
-    UTC.
+    """Parses a date and returns a datetime. Accepts YYYY-MM-DD with or without
+    HH:MM:SS. Optional timezone.
     """
 
-    date = date.strip()
-    tzinfo = timezone.utc  # default
+    # check if there are 2 parts (time + date)
 
-    # Determine if timezone is embedded in the string
-    tz_pattern = re.compile(r'(Z|[+-]\d{2}(?::?\d{2})?)$')
-    tz_match = tz_pattern.search(date)
+    date_str = date.strip()
 
-    if tz_match:
-        tz_str = tz_match.group()
-        date = date[:tz_match.start()].strip()
-    elif tz_input:
-        tz_str = tz_input.strip()
+    if " " in date_str:
+        date_part, time_part = date_str.split(" ", 1)
     else:
-        tz_str = "Z"
+        date_part, time_part = date_str, "00:00:00"
 
-    # Parse timezone
-    if tz_str == "Z":
+    date_parts = list(map(int, date_part.split("-")))
+
+    time_parts = list(map(int, time_part.split(":")))
+    while len(time_parts) < 3:
+        time_parts.append(0)
+
+    while len(date_parts) < 3:
+        date_parts.append(1)
+
+    if not tz_input or tz_input.upper() == "Z":
         tzinfo = timezone.utc
     else:
-        sign = -1 if tz_str.startswith("-") else 1
-        offset_str = tz_str[1:]
+        tz_input = tz_input.strip()
+        sign = -1 if tz_input.startswith("-") else 1
+        offset_str = tz_input[1:]
 
         if ':' in offset_str:
             hours_str, minutes_str = offset_str.split(":")
@@ -103,20 +99,4 @@ def parse_date_input(date, tz_input):
         delta = timedelta(hours=hours, minutes=minutes)
         tzinfo = timezone(sign * delta)
 
-    # Split date and time
-    if ' ' in date:
-        date_str, time_str = date.split(' ', 1)
-    else:
-        date_str, time_str = date, ""
-
-    date_parts = list(map(int, date_str.split('-')))
-    while len(date_parts) < 3:
-        date_parts.append(1)  # Fill missing parts with 1
-
-    time_fields = [0, 0, 0]
-    if time_str:
-        time_parts = list(map(int, time_str.split(':')))
-        for i in range(min(len(time_parts), 3)):
-            time_fields[i] = time_parts[i]
-
-    return datetime(*date_parts, *time_fields, tzinfo=tzinfo)
+    return datetime(*date_parts, *time_parts, tzinfo=tzinfo)
